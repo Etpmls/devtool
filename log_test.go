@@ -1,7 +1,7 @@
 package d_test
 
 import (
-	d "devtool"
+	d "github.com/Etpmls/devtool"
 	log "github.com/sirupsen/logrus"
 	"testing"
 )
