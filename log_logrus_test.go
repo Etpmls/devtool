@@ -7,7 +7,7 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	d.Log.Compress = true
+	d.Log.Optional.Compress = true
 	d.Log.Init()
 
 	log.Debug("Debug")
