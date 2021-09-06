@@ -3,34 +3,56 @@ package d_test
 import (
 	"fmt"
 	d "github.com/Etpmls/devtool"
+	"github.com/go-playground/locales/en"
+	"github.com/go-playground/locales/zh"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	en_translations "github.com/go-playground/validator/v10/translations/en"
+	zh_translations "github.com/go-playground/validator/v10/translations/zh"
 	"testing"
 )
 
 func TestValidator(t *testing.T) {
+	// 初始化，不添加i18n的simple案例
+	// https://github.com/go-playground/validator/blob/master/_examples/simple/main.go
 	err := d.Validator.Init()
 	if err != nil {
 		t.Fatal(err)
 	}
-	translateAll()
-	translateIndividual()
+	translateAll(nil)
+	translateIndividual(nil)
 
+	var (
+		uni      *ut.UniversalTranslator
+		transEn	ut.Translator
+		transZh	ut.Translator
+	)
+
+	// 增加I18n
 	// https://github.com/go-playground/validator/blob/master/_examples/translations/main.go#L12
-	d.Validator.Optional.Fallback = d.ValidatorDefine.En
-	d.Validator.Optional.SupportedLocales.En = true
-	d.Validator.Optional.SupportedLocales.Zh = true
+	d.Validator.Optional.OverrideInit = func() error {
+		// NOTE: ommitting allot of error checking for brevity
+		en := en.New()
+		zh := zh.New()
+		uni = ut.New(en, en, zh)
+		transEn, _ = uni.GetTranslator("en")
+		transZh, _ = uni.GetTranslator("zh")
+		en_translations.RegisterDefaultTranslations(d.Validate, transEn)
+		zh_translations.RegisterDefaultTranslations(d.Validate, transZh)
+		return nil
+	}
+
 	err = d.Validator.Init()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	translateAll()
-	translateIndividual()
-	translateOverride()
+	translateAll(transEn)
+	translateIndividual(transZh)
+	translateOverride(transZh)
 }
 
-func translateAll() {
+func translateAll(trans ut.Translator) {
 
 	type User struct {
 		Username string `validate:"required"`
@@ -46,12 +68,24 @@ func translateAll() {
 
 	err := d.Validate.Struct(user)
 	if err != nil {
-		fmt.Println(d.Validator.TranslateEn(err))
-		fmt.Println(d.Validator.TranslateZh(err))
+
+		// translate all error at once
+		errs := err.(validator.ValidationErrors)
+
+		// returns a map with key = namespace & value = translated error
+		// NOTICE: 2 errors are returned and you'll see something surprising
+		// translations are i18n aware!!!!
+		// eg. '10 characters' vs '1 character'
+
+		if trans != nil {
+			fmt.Println(errs.Translate(trans))
+		} else {
+			fmt.Println(errs)
+		}
 	}
 }
 
-func translateIndividual() {
+func translateIndividual(trans ut.Translator) {
 
 	type User struct {
 		Username string `validate:"required"`
@@ -61,14 +95,23 @@ func translateIndividual() {
 
 	err := d.Validate.Struct(user)
 	if err != nil {
-		fmt.Println(d.Validator.TranslateEn(err))
-		fmt.Println(d.Validator.TranslateZh(err))
+
+		errs := err.(validator.ValidationErrors)
+
+		for _, e := range errs {
+			// can translate each error one at a time.
+			if trans != nil {
+				fmt.Println(e.Translate(trans))
+			} else {
+				fmt.Println(errs)
+			}
+		}
 	}
 }
 
-func translateOverride() {
+func translateOverride(trans ut.Translator) {
 
-	d.Validate.RegisterTranslation("required", d.ValidatorDefine.TransEn, func(ut ut.Translator) error {
+	d.Validate.RegisterTranslation("required", trans, func(ut ut.Translator) error {
 		return ut.Add("required", "{0} must have a value!", true) // see universal-translator for details
 	}, func(ut ut.Translator, fe validator.FieldError) string {
 		t, _ := ut.T("required", fe.Field())
@@ -84,7 +127,12 @@ func translateOverride() {
 
 	err := d.Validate.Struct(user)
 	if err != nil {
-		fmt.Println(d.Validator.TranslateEn(err))
-		fmt.Println(d.Validator.TranslateZh(err))
+
+		errs := err.(validator.ValidationErrors)
+
+		for _, e := range errs {
+			// can translate each error one at a time.
+			fmt.Println(e.Translate(trans))
+		}
 	}
 }
