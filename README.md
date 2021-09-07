@@ -29,4 +29,4 @@ func main() {
 }
 ```
 
-Currently We Support: **Log**
+Currently We Support: **Log**, **Database**, **Validator**, **Token**, **Strings**
