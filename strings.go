@@ -1,6 +1,7 @@
 package d
 
 import (
+	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"time"
 )
@@ -18,4 +19,22 @@ func GenerateRandomString(l int) string {
 		data[i] = code[idx]
 	}
 	return string(data)
+}
+
+// Encrypt user password
+// 加密用户密码
+// https://pkg.go.dev/golang.org/x/crypto/bcrypt
+func BcryptPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// Verify user password
+// 验证用户密码
+func VerifyPassword(password, hash string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil {
+		return false, err
+	}
+	return true, err
 }

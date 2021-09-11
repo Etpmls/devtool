@@ -37,8 +37,8 @@ func TestValidator(t *testing.T) {
 		uni = ut.New(en, en, zh)
 		transEn, _ = uni.GetTranslator("en")
 		transZh, _ = uni.GetTranslator("zh")
-		en_translations.RegisterDefaultTranslations(d.Validate, transEn)
-		zh_translations.RegisterDefaultTranslations(d.Validate, transZh)
+		en_translations.RegisterDefaultTranslations(d.ValidatorClient, transEn)
+		zh_translations.RegisterDefaultTranslations(d.ValidatorClient, transZh)
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func translateAll(trans ut.Translator) {
 		Tagline2: "1",
 	}
 
-	err := d.Validate.Struct(user)
+	err := d.ValidatorClient.Struct(user)
 	if err != nil {
 
 		// translate all error at once
@@ -93,7 +93,7 @@ func translateIndividual(trans ut.Translator) {
 
 	var user User
 
-	err := d.Validate.Struct(user)
+	err := d.ValidatorClient.Struct(user)
 	if err != nil {
 
 		errs := err.(validator.ValidationErrors)
@@ -111,7 +111,7 @@ func translateIndividual(trans ut.Translator) {
 
 func translateOverride(trans ut.Translator) {
 
-	d.Validate.RegisterTranslation("required", trans, func(ut ut.Translator) error {
+	d.ValidatorClient.RegisterTranslation("required", trans, func(ut ut.Translator) error {
 		return ut.Add("required", "{0} must have a value!", true) // see universal-translator for details
 	}, func(ut ut.Translator, fe validator.FieldError) string {
 		t, _ := ut.T("required", fe.Field())
@@ -125,7 +125,7 @@ func translateOverride(trans ut.Translator) {
 
 	var user User
 
-	err := d.Validate.Struct(user)
+	err := d.ValidatorClient.Struct(user)
 	if err != nil {
 
 		errs := err.(validator.ValidationErrors)

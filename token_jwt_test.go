@@ -18,9 +18,9 @@ func TestToken(t *testing.T) {
 		ExpiresAt: 0,
 		Id:        "123",
 		IssuedAt:  0,
-		Issuer:    "admin",
+		Issuer:    "",
 		NotBefore: 0,
-		Subject:   "",
+		Subject:   "admin",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -35,14 +35,14 @@ func TestToken(t *testing.T) {
 	fmt.Println(j.Valid)
 
 	// 获取用户名
-	iss, err := d.Token.GetIssuerByToken(str)
+	iss, err := d.Token.GetSubjectByToken(str)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("Username: " + iss)
 
 	// 获取用户ID
-	id, err := d.Token.GetIdByToken(str)
+	id, err := d.Token.GetJwtIdByToken(str)
 	if err != nil {
 		t.Fatal(err)
 	}

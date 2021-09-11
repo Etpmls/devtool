@@ -5,12 +5,13 @@ import (
 )
 // 主要变量
 var (
-	Validator validator
-	Validate *v.Validate
+	Validator       validator
+	ValidatorClient *v.Validate
 )
 // 参数配置
 type validator struct {
 	Optional validatorOptional
+	enable bool
 }
 // 可选参数配置
 type validatorOptional struct {
@@ -18,7 +19,7 @@ type validatorOptional struct {
 }
 
 func (this *validator) Init() error {
-	Validate = v.New()
+	ValidatorClient = v.New()
 	if this.Optional.OverrideInit != nil {
 		// https://github.com/go-playground/validator/blob/master/_examples/translations/main.go
 		err := this.Optional.OverrideInit()
@@ -26,5 +27,11 @@ func (this *validator) Init() error {
 			return err
 		}
 	}
+	this.enable = true
 	return nil
+}
+
+// 获取启动的状态
+func (this *validator) GetEnabledStatus() bool {
+	return this.enable
 }

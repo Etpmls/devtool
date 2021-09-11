@@ -8,8 +8,8 @@ import (
 
 
 var (
-	Database database
-	DB *gorm.DB
+	Database       database
+	DatabaseClient *gorm.DB
 )
 
 type database struct {
@@ -19,14 +19,15 @@ type database struct {
 	Username string
 	Password string
 	Optional optionalGorm
+	enable bool
 }
 
 type optionalGorm struct {
-	TablePrefix string
-	AutoMigrate []interface{}
-	Charset string
-	ParseTime bool
-	Location string
+	TablePrefix    string
+	AutoMigrate    []interface{}
+	Charset        string
+	DoNotParseTime bool
+	Location       string
 }
 
 // 初始化数据库
@@ -37,10 +38,10 @@ func (this *database) Init() error {
 	}
 
 	var parseTime string
-	if this.Optional.ParseTime {
-		parseTime = "True"
-	} else {
+	if this.Optional.DoNotParseTime {
 		parseTime = "False"
+	} else {
+		parseTime = "True"
 	}
 
 	if this.Optional.Location == "" {
@@ -49,7 +50,7 @@ func (this *database) Init() error {
 
 	var err error
 	dsn := this.Username + ":"+ this.Password + "@tcp(" + this.Host + ":" + this.Port + ")/" + this.DBName + "?charset=" + this.Optional.Charset + "&parseTime=" + parseTime + "&loc=" + this.Optional.Location
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+	DatabaseClient, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix:   this.Optional.TablePrefix,
 		},
@@ -57,14 +58,20 @@ func (this *database) Init() error {
 	if err != nil {
 		return err
 	}
+	this.enable = true
 	return nil
+}
+
+// 获取启动的状态
+func (this *database) GetEnabledStatus() bool {
+	return this.enable
 }
 
 // 创建数据库表
 // https://gorm.io/docs/migration.html
 func (this *database) Migration() error {
 	// Add table suffix when creating tables
-	err := DB.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(this.Optional.AutoMigrate...)
+	err := DatabaseClient.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(this.Optional.AutoMigrate...)
 	if err != nil {
 		return err
 	}

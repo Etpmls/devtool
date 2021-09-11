@@ -12,6 +12,7 @@ var (
 
 type token struct {
 	Optional optionalToken
+	enable bool
 }
 
 type optionalToken struct {
@@ -23,6 +24,12 @@ func (this *token) Init()  {
 	if this.Optional.SigningKey == "" {
 		this.Optional.SigningKey = GenerateRandomString(25)
 	}
+	this.enable = true
+}
+
+// 获取启动的状态
+func (this *token) GetEnabledStatus() bool {
+	return this.enable
 }
 
 // 创建HS256标准JWT Token
@@ -64,7 +71,7 @@ func (this *token) Parse(tokenString string) (*jwt.Token, error) {
 }
 
 // 从token中获取用户名
-func (this *token) GetIssuerByToken(tokenString string) (issuer string, err error) {
+func (this *token) GetSubjectByToken(tokenString string) (issuer string, err error) {
 	tk, err := this.Parse(tokenString)
 	if err != nil {
 		return "", err
@@ -72,7 +79,7 @@ func (this *token) GetIssuerByToken(tokenString string) (issuer string, err erro
 
 	// https://pkg.go.dev/github.com/golang-jwt/jwt#example-Parse-Hmac
 	if claims, ok := tk.Claims.(jwt.MapClaims); ok && tk.Valid {
-		issuer, ok := claims["iss"].(string)
+		issuer, ok := claims["sub"].(string)
 		if !ok {
 			return "", errors.New("unable to get the iss from the token")
 		}
@@ -83,7 +90,7 @@ func (this *token) GetIssuerByToken(tokenString string) (issuer string, err erro
 }
 
 // 从token中获取用户ID
-func (this *token) GetIdByToken(tokenString string) (userId int, err error) {
+func (this *token) GetJwtIdByToken(tokenString string) (userId int, err error) {
 	tk, err := this.Parse(tokenString)
 	if err != nil {
 		return 0, err

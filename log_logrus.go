@@ -15,6 +15,7 @@ const (
 
 type log struct {
 	Optional optionalLogrus
+	enable bool
 }
 
 type optionalLogrus struct {
@@ -76,6 +77,12 @@ func (this *log) Init() {
 			logrus.DebugLevel,
 		},
 	})
+	this.enable = true
+}
+
+// 获取启动的状态
+func (this *log) GetEnabledStatus() bool {
+	return this.enable
 }
 
 // 日志分割
