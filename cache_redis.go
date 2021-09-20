@@ -44,3 +44,10 @@ func (this *cache) Init() error {
 func (this *cache) GetEnabledStatus() bool {
 	return this.enable
 }
+
+func (this *cache) CacheClearAll() {
+	if this.enable {
+		CacheClient.FlushDB(context.Background())
+	}
+	return
+}

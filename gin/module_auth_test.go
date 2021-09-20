@@ -67,6 +67,16 @@ func TestAuth(t *testing.T) {
 		fmt.Println(resData)
 		QuitTest(srv)
 	})
+	r.GET("/user/getCurrent", func(c *gin.Context) {
+		u, err := d_gin.Auth.UserGetCurrent(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, u)
+		fmt.Println(u)
+		QuitTest(srv)
+	})
 	r.POST("/user/create", func(c *gin.Context) {
 		var u d_gin.UserCreateRequest
 		err := d_gin.Auth.UserCreate(c, &u, nil)
@@ -101,6 +111,70 @@ func TestAuth(t *testing.T) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		QuitTest(srv)
+	})
+	r.POST("/role/create", func(c *gin.Context) {
+		var r d_gin.RoleCreateRequest
+		err := d_gin.Auth.RoleCreate(c, &r, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.PUT("/role/edit", func(c *gin.Context) {
+		var r d_gin.RoleEditRequest
+		err := d_gin.Auth.RoleEdit(c, &r, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.DELETE("/role/delete", func(c *gin.Context) {
+		var r d_gin.RoleDeleteRequest
+		err := d_gin.Auth.RoleDelete(c, &r, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.GET("/role/get", func(c *gin.Context) {
+		data, count := d_gin.Auth.RoleGet(c)
+		c.JSON(http.StatusOK, gin.H{"data": data, "count": count})
+		QuitTest(srv)
+	})
+	r.POST("/permission/create", func(c *gin.Context) {
+		var p d_gin.PermissionCreateRequest
+		err := d_gin.Auth.PermissionCreate(c, &p, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.PUT("/permission/edit", func(c *gin.Context) {
+		var p d_gin.PermissionEditRequest
+		err := d_gin.Auth.PermissionEdit(c, &p, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.DELETE("/permission/delete", func(c *gin.Context) {
+		var p d_gin.PermissionDeleteRequest
+		err := d_gin.Auth.PermissionDelete(c, &p, nil)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		QuitTest(srv)
+	})
+	r.GET("/permission/get", func(c *gin.Context) {
+		data, count := d_gin.Auth.PermissionGet(c)
+		c.JSON(http.StatusOK, gin.H{"data": data, "count": count})
 		QuitTest(srv)
 	})
 	srv.ListenAndServe()

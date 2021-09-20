@@ -1,9 +1,0 @@
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth_test.go:59","func":"github.com/Etpmls/devtool/gin_test.TestAuth.func1","level":"error","msg":"Key: 'User.Username' Error:Field validation for 'Username' failed on the 'required' tag","time":"2021-09-09T11:16:45+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:510","func":"github.com/Etpmls/devtool/gin.(*auth).UserCreate.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T13:25:31+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:510","func":"github.com/Etpmls/devtool/gin.(*auth).UserCreate.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T13:26:45+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:510","func":"github.com/Etpmls/devtool/gin.(*auth).UserCreate.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T13:27:11+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:510","func":"github.com/Etpmls/devtool/gin.(*auth).UserCreate.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T13:27:43+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:572","func":"github.com/Etpmls/devtool/gin.(*auth).UserEdit.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T14:21:33+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:572","func":"github.com/Etpmls/devtool/gin.(*auth).UserEdit.func1","level":"error","msg":"\u003cnil\u003e","time":"2021-09-10T14:23:32+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:609","func":"github.com/Etpmls/devtool/gin.(*auth).GetTokenByRequest","level":"error","msg":"token acquisition failed","time":"2021-09-11T15:42:37+08:00"}
-{"file":"C:/Users/User/go/src/devtool/gin/module_auth.go:337","func":"github.com/Etpmls/devtool/gin.(*auth).UserUpdateInformation","level":"error","msg":"token acquisition failed","time":"2021-09-11T15:42:37+08:00"}

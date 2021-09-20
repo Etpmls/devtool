@@ -28,6 +28,7 @@ type optionalGorm struct {
 	Charset        string
 	DoNotParseTime bool
 	Location       string
+	FuzzySearch 	string
 }
 
 // 初始化数据库
@@ -46,6 +47,10 @@ func (this *database) Init() error {
 
 	if this.Optional.Location == "" {
 		this.Optional.Location = "Local"
+	}
+
+	if this.Optional.FuzzySearch == "" {
+		this.Optional.FuzzySearch = "LIKE"
 	}
 
 	var err error

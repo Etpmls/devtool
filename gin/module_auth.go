@@ -2,16 +2,17 @@ package d_gin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	d "github.com/Etpmls/devtool"
 	"github.com/gin-gonic/gin"
 	ut "github.com/go-playground/universal-translator"
+	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -76,7 +77,6 @@ type Attachment struct {
 }
 
 const (
-	CacheMenuGetAll = "MenuGetAll"
 	CacheUserGetCurrent = "UserGetCurrent"
 )
 
@@ -128,7 +128,7 @@ func (this *auth) GetEnabledStatus() bool {
 // 无验证码模式用户登录
 type UserLoginRequest struct {
 	Username string `json:"username" validate:"required,max=255"`
-	Password string `json:"password" validate:"required,max=255"`
+	Password string `json:"password" validate:"required,max=50"`
 }
 func (this *auth) UserLogin(c *gin.Context, json *UserLoginRequest, translator ut.Translator) (string, error) {
 	err := Validate(c, json, translator)
@@ -150,19 +150,107 @@ func (this *auth) UserLogin(c *gin.Context, json *UserLoginRequest, translator u
 	return token, nil
 }
 
+// 获取当前用户
+type UserGetCurrentResponse struct {
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time	`json:"-"`
+	UpdatedAt time.Time	`json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Username string     `gorm:"unique;notnull" json:"username"`
+	Password string     `gorm:"notnull" json:"-"`
+	//Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"avatar"`
+	Avatar   string `json:"avatar"`
+	//Roles    []Role     `gorm:"many2many:role_users;" json:"roles"`
+	Roles []string `json:"roles"`
+}
+func (this *auth) UserGetCurrent(c *gin.Context)  (interface{}, error) {
+	if d.Cache.GetEnabledStatus() {
+		return this.userGetCurrentCache(c)
+	} else {
+		return this.userGetCurrentNoCache(c)
+	}
+}
+func (this *auth) userGetCurrentCache(c *gin.Context) (interface{}, error) {
+	id, err := this.GetUserIdByRequest(c)
+	if err != nil {
+		return nil, err
+	}
+
+	str, err := d.CacheClient.HGet(context.Background(), CacheUserGetCurrent, strconv.Itoa(int(id))).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return this.userGetCurrentNoCache(c)
+		}
+		return nil, err
+	}
+
+	var res UserGetCurrentResponse
+	err = json.Unmarshal([]byte(str), &res)
+	if err != nil {
+		_ = d.CacheClient.HDel(context.Background(), CacheUserGetCurrent, strconv.Itoa(int(id))).Err()
+	}
+
+	return res, nil
+}
+func (this *auth) userGetCurrentNoCache(c *gin.Context)  (interface{}, error){
+	// Get User By request
+	u, err := this.GetUserByRequest(c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ignore the avatar tag in the User structure
+	type tmp struct {
+		User
+		Avatar string	`json:"avatar"`
+	}
+
+	var userApi UserGetCurrentResponse
+	// 复制相同字段且相同类型的值
+	d.CopyStructValue(u, &userApi)
+
+	// Avatar
+	var a Attachment
+	err = d.DatabaseClient.Model(&u).Association("Avatar").Find(&a)
+	if err != nil {
+		return nil, err
+	}
+	userApi.Avatar = a.Path
+
+	// Roles
+	var r []Role
+	_ = d.DatabaseClient.Model(&u).Association("Roles").Find(&r)
+	for _, v := range r {
+		userApi.Roles = append(userApi.Roles, v.Name)
+	}
+
+	if d.Cache.GetEnabledStatus() {
+		b, err := json.Marshal(userApi)
+		if err == nil {
+			var m = make(map[string]interface{})
+			m[strconv.Itoa(int(u.ID))] = string(b)
+			_ = d.CacheClient.HSet(context.Background(), CacheUserGetCurrent, m).Err()
+		}
+	}
+
+	return userApi, nil
+}
+
 // 创建用户
 type UserCreateRequest struct {
 	ID        uint `json:"-"`
 	CreatedAt time.Time	`json:"-"`
 	UpdatedAt time.Time	`json:"-"`
 	DeletedAt gorm.DeletedAt `json:"-"`
-	Username string `json:"username" validate:"required,max=50"`
+	Username string `json:"username" validate:"required,max=255"`
 	Password string `json:"password" validate:"required,max=50"`
+	Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"-"`
 	Roles []Role `gorm:"many2many:role_users" json:"roles"`
 }
 func (this *auth) UserCreate(c *gin.Context, json *UserCreateRequest, translator ut.Translator) error {
 	err := Validate(c, json, translator)
 	if err != nil {
+		logrus.Error(err)
 		return err
 	}
 
@@ -175,21 +263,17 @@ func (this *auth) UserCreate(c *gin.Context, json *UserCreateRequest, translator
 		return errors.New("user already exists")
 	}
 
-	// 格式转化
-	type User UserCreateRequest
-	u := User(*json)
-
 	// 创建数据
 	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
 
 		// Bcrypt Password
-		u.Password, err = d.BcryptPassword(u.Password)
+		json.Password, err = d.BcryptPassword(json.Password)
 		if err != nil {
 			logrus.Error(err)
 			return err
 		}
 
-		result := tx.Create(&u)
+		result := tx.Model(&User{}).Create(json)
 		if result.Error != nil {
 			logrus.Error(err)
 			return result.Error
@@ -198,22 +282,24 @@ func (this *auth) UserCreate(c *gin.Context, json *UserCreateRequest, translator
 		return nil
 	})
 
-	// 更改原值
-	*json = UserCreateRequest(u)
-
 	return err
 }
 
 // 修改用户
 type UserEditRequest struct {
 	ID uint `json:"id" validate:"required"`
-	Username string `json:"username" validate:"required"`
+	CreatedAt time.Time	`json:"-"`
+	UpdatedAt time.Time	`json:"-"`
+	DeletedAt gorm.DeletedAt `json:"-"`
+	Username string `json:"username" validate:"required,max=255"`
 	Password string `json:"password" validate:"max=50"`
+	Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"-"`
 	Roles []Role `gorm:"many2many:role_users" json:"roles"`
 }
 func (this *auth) UserEdit(c *gin.Context, json *UserEditRequest, translator ut.Translator) error {
 	err := Validate(c, json, translator)
 	if err != nil {
+		logrus.Error(err)
 		return err
 	}
 
@@ -264,6 +350,7 @@ type UserDeleteRequest struct {
 func (this *auth) UserDelete(c *gin.Context, json *UserDeleteRequest, translator ut.Translator) error {
 	err := Validate(c, json, translator)
 	if err != nil {
+		logrus.Error(err)
 		return err
 	}
 
@@ -318,14 +405,18 @@ type UserUpdateInformationRequest struct {
 	CreatedAt time.Time	`json:"-"`
 	UpdatedAt time.Time	`json:"-"`
 	DeletedAt gorm.DeletedAt	`json:"-"`
+	Username string `json:"-"`
 	Password string `json:"password" validate:"omitempty,min=6,max=50"`
 	Avatar Attachment	`gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"avatar"`
+	Roles []Role `gorm:"many2many:role_users" json:"-"`
 }
 func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformationRequest, translator ut.Translator) error {
 	err := Validate(c, json, translator)
 	if err != nil {
+		logrus.Error(err)
 		return err
 	}
+
 
 	// Get current user id
 	id, err := this.GetUserIdByRequest(c)
@@ -350,12 +441,14 @@ func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformat
 		result2 := tx.Where("owner_id = ?", id).Where("owner_type = ?", "user-avatar").First(&old)
 		// 如果找到记录则删除
 		if result2.RowsAffected > 0 {
-			// 根据Path删除附件
-			err := this.AttachmentBatchDelete([]string{old.Path})
-			if err != nil {
+			// Delete Database
+			if err := d.DatabaseClient.Unscoped().Where("path IN (?)", []string{old.Path}).Delete(Attachment{}).Error; err != nil {
 				logrus.Error(err)
 				return err
 			}
+
+			// 根据Path删除附件
+			err = d.FileBatchDelete([]string{old.Path})
 		}
 		// 3.新增avatar
 		err := tx.Model(&User{ID: id}).Association("Avatar").Replace(&Attachment{Path:json.Avatar.Path})
@@ -370,7 +463,7 @@ func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformat
 			json.Password, err = d.BcryptPassword(json.Password)
 		}
 
-		result := tx.Debug().Model(&User{ID: id}).Updates(json)
+		result := tx.Model(&User{ID: id}).Updates(json)
 		if result.Error != nil {
 			logrus.Error(result.Error)
 			return result.Error
@@ -385,8 +478,335 @@ func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformat
 	return err
 }
 
+// Create Role
+// 创建角色
+type RoleCreateRequest struct {
+	ID        uint `json:"-"`
+	CreatedAt time.Time	`json:"-"`
+	UpdatedAt time.Time	`json:"-"`
+	DeletedAt gorm.DeletedAt `json:"-"`
+	Name string `json:"name" validate:"required,max=255"`
+	Remark string `json:"remark"`
+	Users []User             `gorm:"many2many:role_users;" json:"-"`
+	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
+}
+func (this *auth) RoleCreate(c *gin.Context, json *RoleCreateRequest, translator ut.Translator) error {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	// Validate Name Unique
+	var count int64
+	d.DatabaseClient.Model(&Role{}).Where("name = ?", json.Name).Count(&count)
+	if count > 0 {
+		return errors.New("duplicate role name")
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		// Insert Data
+		result := tx.Model(&Role{}).Create(json)
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return nil
+}
+
+// Modify role
+// 修改角色
+type RoleEditRequest struct {
+	ID        uint `json:"id" validate:"required,min=1"`
+	CreatedAt time.Time `gorm:"-" json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Name string `json:"name" validate:"required,max=255"`
+	Remark string `json:"remark"`
+	Users []User             `gorm:"many2many:role_users;" json:"-"`
+	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
+}
+func (this *auth) RoleEdit(c *gin.Context, json *RoleEditRequest, translator ut.Translator) error {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	// Validate Name Unique
+	var count int64
+	d.DatabaseClient.Model(&Role{}).Where("name = ?", json.Name).Where("id != ?", json.ID).Count(&count)
+	if count > 0 {
+		return errors.New("duplicate role name")
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		type Role RoleEditRequest
+		data := Role(*json)
+		result := tx.Debug().Save(&data)
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Delete roles (multiple can be deleted at the same time)
+// 删除角色(可以同时删除多个)
+type RoleDeleteRequest struct {
+	Roles []Role `json:"roles" validate:"required,min=1"`
+}
+func (this *auth) RoleDelete(c *gin.Context, json *RoleDeleteRequest, translator ut.Translator) error {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	var ids []uint
+	for _, v := range json.Roles {
+		ids = append(ids, v.ID)
+	}
+	// Find if admin is included in ids
+	// 查找ids中是否包含admin
+	b := this.CheckIfOneIsIncludeInIds(ids)
+	if b {
+		return errors.New("can not include administrator")
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		var r []Role
+		tx.Where("id IN ?", ids).Find(&r)
+
+		// 删除角色
+		result := tx.Where("id IN ?", ids).Delete(&Role{})
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
+		}
+
+		// 删除关联
+		err = tx.Model(&r).Association("Users").Clear()
+		if err != nil {
+			logrus.Error(err)
+			return err
+		}
+
+		// 删除关联
+		err = tx.Model(&r).Association("Permissions").Clear()
+		if err != nil {
+			logrus.Error(err)
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Get all characters
+// 获取所有的角色
+type RoleGetResponse struct {
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time	`json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Name string `json:"name"`
+	Remark string `json:"remark"`
+	Users []User             `gorm:"many2many:role_users;" json:"-"`
+	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
+}
+func (this *auth) RoleGet(c *gin.Context) (interface{}, int) {
+	type Role RoleGetResponse
+	var data []Role
+
+	limit, offset := GetPageByQuery(c)
+	var count int64
+	// Get the title of the search, if not get all the data
+	// 获取搜索的标题，如果没有获取全部数据
+	search := c.Query("search")
+
+	d.DatabaseClient.Model(&Role{}).Preload("Permissions").Where("name " + d.Database.Optional.FuzzySearch + " ?", "%"+ search +"%").Count(&count).Limit(limit).Offset(offset).Find(&data)
+
+	return data, int(count)
+}
+
+// Create Permission
+// 创建权限
+type PermissionCreateRequest struct {
+	ID        uint `gorm:"primarykey" json:"-"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Name string	`json:"name" validate:"required,max=255"`
+	Method string `json:"method" validate:"required,min=1"`
+	Path	string	`json:"path" validate:"required,max=255"`
+	Remark string `json:"remark"`
+	Roles []Role `gorm:"many2many:role_permissions;" json:"-"`
+}
+func (this *auth) PermissionCreate(c *gin.Context, json *PermissionCreateRequest, translator ut.Translator) error {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		// Insert Data
+		result := tx.Model(&Permission{}).Create(json)
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Modify Permission
+// 修改权限
+type PermissionEditRequest struct {
+	ID        uint `gorm:"primarykey" json:"id" validate:"required,min=1"`
+	CreatedAt time.Time `gorm:"-" json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Name string `json:"name" validate:"required,max=255"`
+	Method string `json:"method" validate:"required,min=1"`
+	Path	string	`json:"path" validate:"required,max=255"`
+	Remark string `json:"remark"`
+	Roles []Role `gorm:"many2many:role_permissions;" json:"-"`
+}
+func (this *auth) PermissionEdit(c *gin.Context, json *PermissionEditRequest, translator ut.Translator) error  {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		type Permission PermissionEditRequest
+		data := Permission(*json)
+
+		result := tx.Save(&data)
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Delete Permission (multiple can be deleted at the same time)
+// 删除权限(可以同时删除多个)
+type PermissionDeleteRequest struct {
+	Permissions []Permission `json:"permissions" validate:"required,min=1"`
+}
+func (this *auth) PermissionDelete(c *gin.Context, json *PermissionDeleteRequest, translator ut.Translator) error {
+	err := Validate(c, json, translator)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+
+	var ids []uint
+	for _, v := range json.Permissions {
+		ids = append(ids, v.ID)
+	}
+
+	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
+		var p []Permission
+		tx.Where("id IN ?", ids).Find(&p)
+
+		// 删除权限
+		result := tx.Delete(&p)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// 删除关联
+		err = tx.Model(&p).Association("Roles").Clear()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Get all Permission
+// 获取所有的权限
+type PermissionGetResponse struct {
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time	`json:"created_at"`
+	UpdatedAt time.Time	`json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Name string `json:"name"`
+	Method string `json:"method"`
+	Path	string	`json:"path"`
+	Remark string `json:"remark"`
+	Roles []Role `gorm:"many2many:role_permissions;" json:"roles"`
+}
+func (this *auth) PermissionGet(c *gin.Context) (interface{}, int)  {
+	type Permission PermissionGetResponse
+	var data []Permission
+
+	limit, offset := GetPageByQuery(c)
+	var count int64
+	// Get the title of the search, if not get all the data
+	// 获取搜索的标题，如果没有获取全部数据
+	search := c.Query("search")
+
+	d.DatabaseClient.Model(&Permission{}).Where("name " + d.Database.Optional.FuzzySearch + " ?", "%"+ search +"%").Count(&count).Limit(limit).Offset(offset).Find(&data)
+
+	return data, int(count)
+}
+
+// 磁盘清理，删除未使用的附件
+func (this *auth) DiskCleanup() error {
+	var a []Attachment
+	d.DatabaseClient.Where("owner_id = ?", 0).Or("owner_type = ?", "").Find(&a)
+
+	// If there is no value, return directly
+	// 如果没有值，则直接返回
+	if len(a) == 0 {
+		return nil
+	}
+
+	var pt []string
+	for _, v := range a {
+		pt = append(pt, v.Path)
+		err := d.FilePathValidate(v.Path, []string{d.GetUploadPath()})
+		if err != nil {
+			return err
+		}
+	}
+
+	err := d.FileBatchDelete(pt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // 插入初始化数据到数据库
-func (this *auth)InsertBasicDataToDatabase() error {
+func (this *auth) InsertBasicDataToDatabase() error {
 	err := d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
 		// Create Role
 		role := Role{
@@ -579,29 +999,6 @@ func (this *auth)InsertBasicDataToDatabase() error {
 	return err
 }
 
-// Get token by header Or query
-// 从header或query中获取token
-func (this *auth) GetTokenByRequest(c *gin.Context) (token string, err error) {
-	// Get Query Token
-	token, b := c.GetQuery("token")
-	if b {
-		return token, err
-	}
-
-	// Get Header Token
-	token = c.GetHeader("X-Token")
-	if len(token) != 0 {
-		return token, err
-	}
-
-	token = c.GetHeader("Token")
-	if len(token) != 0 {
-		return token, err
-	}
-
-	logrus.Error("token acquisition failed")
-	return token, errors.New("token acquisition failed")
-}
 // Only check if the token exists
 // 只检查token是否存在
 func (this *auth) MiddlewareCheckToken() gin.HandlerFunc {
@@ -747,19 +1144,6 @@ func (this *auth) CheckIfOneIsIncludeInIds(ids []uint) bool {
 	return false
 }
 
-// 根据请求信息获取用户id
-func (this *auth) GetUserIdByRequest(c *gin.Context) (uint, error) {
-	token, err := this.GetTokenByRequest(c)
-	if err != nil {
-		return 0, err
-	}
-	id, err := d.Token.GetJwtIdByToken(token)
-	if err != nil {
-		return 0, err
-	}
-	return uint(id), err
-}
-
 // Verify user logic
 // 验证用户逻辑
 func (this *auth) UserVerify(username string, password string) (id uint, unm string, err error) {
@@ -786,56 +1170,74 @@ func (this *auth) TokenGenerate(userId uint, username string) (string, error) {
 		Subject:    username,	// 发行者
 	})
 }
-
-// Validate Path is a file in storage/upload
-// 验证路径是否在storage/upload中
-func (this *auth) AttachmentValidatePath(path string) error {
-	const upload_path = "storage/upload/"
-	// 截取前十五个字符判断和Path是否相同
-	if len(path) <= len(upload_path) || !strings.Contains(path[:len(upload_path)], upload_path) {
-		logrus.Error("illegal request path")
-		return  errors.New("Illegal request path!")
-	}
-	f, err := os.Stat(path)
+// 根据token获取用户
+func (this *auth) GetUserByToken(token string) (u User, err error) {
+	// 从Token获取ID
+	id, err := d.Token.GetJwtIdByToken(token)
 	if err != nil {
-		logrus.Error(err)
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+		return u, err
 	}
-	// 如果文件是目录
-	if f.IsDir() {
-		logrus.Error("cannot delete directory")
-		return errors.New("Cannot delete directory!")
+	// 从Token获取username
+	username, err  := d.Token.GetSubjectByToken(token)
+	if err != nil {
+		return u, err
 	}
-	return nil
+
+	// 获取用户
+	var data User
+	result := d.DatabaseClient.Where("id = ? AND username = ?", id, username).First(&data)
+	if !(result.RowsAffected > 0) {
+		return u, errors.New("the current user was not found in the database")
+	}
+
+	return data, nil
 }
-
-// Batch delete any type of files in storage/upload/
-// 批量删除storage/upload/中的任何类型文件
-func (this *auth) AttachmentBatchDelete(s []string) (err error) {
-	// 第一遍遍历先验证
-	for _, v := range s {
-		// Validate If a File
-		err = this.AttachmentValidatePath(v)
-		if err != nil {
-			return err
-		}
-	}
-	// 第二遍遍历再删除
-	for _, v := range s {
-		// Delete Image
-		_ = os.Remove(v)
+// Get token by header Or query
+// 从header或query中获取token
+func (this *auth) GetTokenByRequest(c *gin.Context) (token string, err error) {
+	// Get Query Token
+	token, b := c.GetQuery("token")
+	if b {
+		return token, err
 	}
 
-	// Delete Database
-	if err = d.DatabaseClient.Unscoped().Where("path IN (?)", s).Delete(Attachment{}).Error; err != nil {
-		logrus.Error(err)
-		return err
+	// Get Header Token
+	token = c.GetHeader("X-Token")
+	if len(token) != 0 {
+		return token, err
 	}
 
-	return err
+	token = c.GetHeader("Token")
+	if len(token) != 0 {
+		return token, err
+	}
+
+	logrus.Error("token acquisition failed")
+	return token, errors.New("token acquisition failed")
+}
+// 根据请求信息获取用户id
+func (this *auth) GetUserIdByRequest(c *gin.Context) (uint, error) {
+	token, err := this.GetTokenByRequest(c)
+	if err != nil {
+		return 0, err
+	}
+	id, err := d.Token.GetJwtIdByToken(token)
+	if err != nil {
+		return 0, err
+	}
+	return uint(id), err
+}
+// 根据请求信息获取用户id
+func (this *auth) GetUserByRequest(c *gin.Context) (u User, err error) {
+	token, err := this.GetTokenByRequest(c)
+	if err != nil {
+		return u, err
+	}
+	u, err = this.GetUserByToken(token)
+	if err != nil {
+		return u, err
+	}
+	return u, err
 }
 
 

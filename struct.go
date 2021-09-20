@@ -24,7 +24,7 @@ func CopyStructValue(source interface{}, target interface{})  {
 	for i := 0; i < sourceVal.NumField(); i++ {
 		name := sourceVal.Type().Field(i).Name
 		ok := targetVal.FieldByName(name).IsValid();
-		if ok && targetVal.FieldByName(name).Kind() == sourceVal.Field(i).Kind() {
+		if ok && (targetVal.FieldByName(name).Kind() == sourceVal.Field(i).Kind()) && (targetVal.FieldByName(name).Type() == sourceVal.Field(i).Type()) {
 			targetVal.FieldByName(name).Set(sourceVal.Field(i))
 		}
 	}
