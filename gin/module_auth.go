@@ -398,6 +398,39 @@ func (this *auth) UserDelete(c *gin.Context, json *UserDeleteRequest, translator
 	return err
 }
 
+// Get all user
+// 获取全部用户
+type UserGetResponse struct {
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Username string     `gorm:"unique;notnull" json:"username"`
+	Password string     `gorm:"notnull" json:"-"`
+	Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"-"`
+	Roles    []Role     `gorm:"many2many:role_users;" json:"roles"`
+}
+func (this *auth) UserGet(c *gin.Context) (interface{}, int) {
+	// 重写ApiUserGetAllV2的Roles字段，防止泄露隐私字段信息
+	type Role RoleGetResponse
+	type User struct {
+		UserGetResponse
+		Roles    []Role     `gorm:"many2many:role_users;" json:"roles"`
+	}
+	var data []User
+
+	// 获取分页和标题
+	limit, offset := GetPageByQuery(c)
+	var count int64
+	// Get the title of the search, if not get all the data
+	// 获取搜索的标题，如果没有获取全部数据
+	search := c.Query("search")
+
+	d.DatabaseClient.Model(&User{}).Preload("Roles").Where("username " + d.Database.Optional.FuzzySearch + " ?", "%"+ search +"%").Count(&count).Limit(limit).Offset(offset).Find(&data)
+
+	return data, int(count)
+}
+
 // Update user information
 // 更新用户信息
 type UserUpdateInformationRequest struct {

@@ -113,6 +113,11 @@ func TestAuth(t *testing.T) {
 		}
 		QuitTest(srv)
 	})
+	r.GET("/user/get", func(c *gin.Context) {
+		data, count := d_gin.Auth.UserGet(c)
+		c.JSON(http.StatusOK, gin.H{"data": data, "count": count})
+		QuitTest(srv)
+	})
 	r.POST("/role/create", func(c *gin.Context) {
 		var r d_gin.RoleCreateRequest
 		err := d_gin.Auth.RoleCreate(c, &r, nil)
