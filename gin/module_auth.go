@@ -370,8 +370,8 @@ func (this *auth) UserDelete(c *gin.Context, json *UserDeleteRequest, translator
 		var u []User
 		tx.Where("id IN ?", ids).Find(&u)
 
-		// 删除用户
-		result := tx.Delete(&u)
+		// 删除用户（彻底删除，不保留删除时间，防止重复用户名）
+		result := tx.Unscoped().Delete(&u)
 		if result.Error != nil {
 			logrus.Error(result.Error)
 			return result.Error
