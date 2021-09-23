@@ -580,7 +580,15 @@ func (this *auth) RoleEdit(c *gin.Context, json *RoleEditRequest, translator ut.
 	err = d.DatabaseClient.Transaction(func(tx *gorm.DB) error {
 		type Role RoleEditRequest
 		data := Role(*json)
-		result := tx.Debug().Save(&data)
+
+		// 删除关联
+		err = tx.Model(&Role{ID: data.ID}).Association("Permissions").Clear()
+		if err != nil {
+			logrus.Error(err)
+			return err
+		}
+
+		result := tx.Save(&data)
 		if result.Error != nil {
 			logrus.Error(result.Error)
 			return result.Error
