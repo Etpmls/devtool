@@ -33,37 +33,37 @@ type optionalAuth struct {
 }
 
 type User struct {
-	ID        uint `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Username string     `gorm:"unique;notnull"`
-	Password string     `gorm:"notnull"`
-	Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar"`
-	Roles    []Role     `gorm:"many2many:role_users;"`
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time	`json:"created_at"`
+	UpdatedAt time.Time	`json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Username string     `gorm:"unique;notnull" json:"username"`
+	Password string     `gorm:"notnull" json:"password"`
+	Avatar   Attachment `gorm:"polymorphic:Owner;polymorphicValue:user-avatar" json:"avatar"`
+	Roles    []Role     `gorm:"many2many:role_users;" json:"roles"`
 }
 
 type Role struct {
-	ID        uint `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Name string
-	Remark string
-	Users []User             `gorm:"many2many:role_users;"`
-	Permissions []Permission `gorm:"many2many:role_permissions;"`
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time	`json:"created_at"`
+	UpdatedAt time.Time	`json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Name string	`json:"name"`
+	Remark string	`json:"remark"`
+	Users []User             `gorm:"many2many:role_users;" json:"users"`
+	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
 }
 
 type Permission struct {
-	ID        uint `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Name string
-	Method string
-	Path	string
-	Remark string
-	Roles []Role `gorm:"many2many:role_permissions;"`
+	ID        uint `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time	`json:"created_at"`
+	UpdatedAt time.Time	`json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Name string	`json:"name"`
+	Method string	`json:"method"`
+	Path	string	`json:"path"`
+	Remark string	`json:"remark"`
+	Roles []Role `gorm:"many2many:role_permissions;" json:"roles"`
 }
 
 type Attachment struct {
@@ -659,11 +659,7 @@ type RoleGetResponse struct {
 	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
 }
 func (this *auth) RoleGet(c *gin.Context) (interface{}, int) {
-	type Permission PermissionGetResponse
-	type Role struct {
-		RoleGetResponse
-		Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
-	}
+	type Role RoleGetResponse
 	var data []Role
 
 	limit, offset := GetPageByQuery(c)
