@@ -659,7 +659,11 @@ type RoleGetResponse struct {
 	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
 }
 func (this *auth) RoleGet(c *gin.Context) (interface{}, int) {
-	type Role RoleGetResponse
+	type Permission PermissionGetResponse
+	type Role struct {
+		RoleGetResponse
+		Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions"`
+	}
 	var data []Role
 
 	limit, offset := GetPageByQuery(c)
