@@ -1,0 +1,5 @@
+app:
+  http-port: "8081"
+  key: "123456"
+  enable-database: false
+  token-expiration-time: 86400
