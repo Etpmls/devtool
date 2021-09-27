@@ -17,7 +17,6 @@ var Dingtalk dingtalk
 
 type dingtalk struct {
 	AgentId string
-	CorpId string
 	AppKey string
 	AppSecret string
 	Optional optionalDingtalk
@@ -25,6 +24,7 @@ type dingtalk struct {
 }
 
 type optionalDingtalk struct {
+	CorpId string
 }
 
 func (this *dingtalk) Init() error {
@@ -32,20 +32,29 @@ func (this *dingtalk) Init() error {
 		return errors.New("agentId is required")
 	}
 
-	if this.CorpId == "" {
-		return errors.New("corpId is required")
+	if this.AppKey == "" {
+		return errors.New("appKey is required")
+	}
+
+	if this.AppSecret == "" {
+		return errors.New("appSecret is required")
 	}
 
 	this.enable = true
 	return nil
 }
 
+// 获取启动的状态
+func (this *dingtalk) GetEnabledStatus() bool {
+	return this.enable
+}
+
 const (
 	baseUri                      = "oapi.dingtalk.com"
-	PathSendNotificationsOfWork = "/topapi/message/corpconversation/asyncsend_v2"
-	Path = "user/getuserinfo"
-	FieldAccessToken             = "DingtalkAccessToken"
-	DefaultFieldValueAccessToken = "DingtalkAccessToken"
+	PathSendNotificationsOfWork  = "/topapi/message/corpconversation/asyncsend_v2"
+	PathGetUserInfo              = "user/getuserinfo"
+	FieldAccessToken             = "DingtalkAccessToken"	// 储存access token的自定义字段的键名
+	DefaultFieldValueAccessToken = "DingtalkAccessToken"	// 默认储存access token的自定义字段的值
 )
 
 // 获取accessToken
@@ -156,7 +165,7 @@ func (this *dingtalk) SendTextNotificationsOfWork(userID string, content string)
 	u := url.URL{}
 	u.Host = baseUri
 	u.Scheme = "https"
-	// u.Path = "/topapi/TextMessage/corpconversation/asyncsend_v2"
+	// u.PathGetUserInfo = "/topapi/TextMessage/corpconversation/asyncsend_v2"
 	u.Path = PathSendNotificationsOfWork
 	u.RawQuery = v.Encode()
 
@@ -251,7 +260,7 @@ func (this *dingtalk) SendOaNotificationsOfWork(userID string, m OaMessage) (err
 	u := url.URL{}
 	u.Host = baseUri
 	u.Scheme = "https"
-	// u.Path = "/topapi/TextMessage/corpconversation/asyncsend_v2"
+	// u.PathGetUserInfo = "/topapi/TextMessage/corpconversation/asyncsend_v2"
 	u.Path = PathSendNotificationsOfWork
 	u.RawQuery = v.Encode()
 
@@ -293,7 +302,7 @@ func (this *dingtalk) GetUserInfo(access_token string, code string) (userInfo Ge
 	u := url.URL{}
 	u.Host = baseUri
 	u.Scheme = "https"
-	u.Path = "user/getuserinfo"
+	u.Path = PathGetUserInfo
 	u.RawQuery = v.Encode()
 
 	// 请求路径
@@ -322,4 +331,16 @@ func (this *dingtalk) GetUserId(access_token string, code string) (userId string
 		return "", err
 	}
 	return userInfo.UserId, nil
+}
+
+// 设置字段内容
+// 跳转钉钉工作台需要的URL前缀
+func (this *dingtalk) GenerateJumpableUrl(appurl string) (string, error) {
+	if this.Optional.CorpId == "" {
+		return "", errors.New("corpId of dingtalk is not set")
+	}
+
+	u := "dingtalk://dingtalkclient/action/openapp?corpid=" + this.Optional.CorpId + "&container_type=work_platform&app_id=0_" + this.AgentId + "&redirect_type=jump&redirect_url=" + appurl
+
+	return u, nil
 }
