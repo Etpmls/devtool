@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	d "github.com/Etpmls/devtool"
+	"github.com/Etpmls/devtool/recaptcha"
 	"github.com/gin-gonic/gin"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-redis/redis/v8"
@@ -95,7 +96,6 @@ func (this *auth) Init() error {
 	}
 
 	// 设置默认处理方式
-
 	if this.Optional.TokenExpirationTime == 0 {
 		this.Optional.TokenExpirationTime = 43200
 	}
@@ -149,6 +149,42 @@ func (this *auth) UserLogin(c *gin.Context, json *UserLoginRequest, translator u
 
 	return token, nil
 }
+
+// 使用Recaptcha登录
+type UserLoginRecaptchaRequest struct {
+	Username string `json:"username" validate:"required,max=255"`
+	Password string `json:"password" validate:"required,max=50"`
+	Response string	`json:"response" validate:"required"`
+}
+func (this *auth) UserLoginRecaptcha(c *gin.Context, json *UserLoginRecaptchaRequest, translator ut.Translator) (string, error) {
+	err := Validate(c, json, translator)
+	if err != nil {
+		return "", err
+	}
+
+	if !d_recaptcha.Recaptcha.GetEnabledStatus() {
+		return "", errors.New("recaptcha is not enable")
+	}
+
+	err = d_recaptcha.Recaptcha.VerifyCaptcha(json.Response)
+	if err != nil {
+		return "", err
+	}
+
+	usrID, usrName, err := this.UserVerify(json.Username, json.Password)
+	if err != nil {
+		return "", err
+	}
+
+	//JWT
+	token, err := this.TokenGenerate(usrID, usrName)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
 
 // 获取当前用户
 type UserGetCurrentResponse struct {
