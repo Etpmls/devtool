@@ -224,7 +224,6 @@ type OaMessage struct {
 // // 跳转钉钉工作台需要的URL前缀
 // jumpWorkbenchUrlPrefix := "dingtalk://dingtalkclient/action/openapp?corpid=" + this.CorpId + "&container_type=work_platform&app_id=0_" + this.AgentId + "&redirect_type=jump&redirect_url="
 // 	var m OaMessage
-//	m.Msgtype = "oa"
 //	m.Oa.MessageUrl = appUrl
 //	m.Oa.PcMessageUrl = jumpWorkbenchUrlPrefix + appUrl
 //	m.Oa.Head.Bgcolor = "FFFF0000"
@@ -245,6 +244,9 @@ func (this *dingtalk) SendOaNotificationsOfWork(userID string, m OaMessage) (err
 	if err != nil {
 		return err
 	}
+
+	// 设置发送内容
+	m.Msgtype = "oa"
 
 	// 设置Body参数
 	ctx := SendNotificationsOfWorkRequest{
