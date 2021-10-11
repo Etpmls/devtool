@@ -10,14 +10,14 @@ import (
 )
 
 // 通用的校验方法
-func Validate(c *gin.Context, json interface{}, translator ut.Translator) error {
+func Validate(c *gin.Context, structAddr interface{}, translator ut.Translator) error {
 	// 绑定数据
-	if err := c.ShouldBindJSON(json); err != nil {
+	if err := c.ShouldBindJSON(structAddr); err != nil {
 		return err
 	}
 
 	// 验证数据
-	err := d.ValidatorClient.Struct(json)
+	err := d.ValidatorClient.Struct(structAddr)
 	if err != nil {
 		if translator == nil {
 			return err

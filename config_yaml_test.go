@@ -14,6 +14,7 @@ func TestConfig(t *testing.T) {
 			Key string
 			EnableDatabase bool	`yaml:"enable-database"`
 			TokenExpirationTime time.Duration	`yaml:"token-expiration-time"`
+			TestField string
 		}
 	}
 
@@ -32,4 +33,5 @@ func TestConfig(t *testing.T) {
 	fmt.Println(Config.App.Key)
 	fmt.Println(Config.App.EnableDatabase)
 	fmt.Println(Config.App.TokenExpirationTime)
+	fmt.Println(Config.App.TestField)
 }

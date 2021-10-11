@@ -1,6 +1,7 @@
 package d
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -29,4 +30,24 @@ func CopyStructValue(source interface{}, target interface{})  {
 		}
 	}
 	return
+}
+
+func StructToMap(st interface{}) (map[string]interface{}, error) {
+	v := reflect.ValueOf(st)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("ToMap only accepts struct or struct pointer; got %T", v)
+	}
+
+	// 初始化一个map
+	var m = make(map[string]interface{})
+	// 遍历结构体字段
+	for i := 0; i < v.NumField(); i++ {
+		m[v.Type().Field(i).Name] = v.Field(i).Interface()
+	}
+
+	return m, nil
 }
