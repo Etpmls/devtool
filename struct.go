@@ -3,6 +3,7 @@ package d
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 func CopyStructValue(source interface{}, target interface{})  {
@@ -46,7 +47,7 @@ func StructToMap(st interface{}) (map[string]interface{}, error) {
 	var m = make(map[string]interface{})
 	// 遍历结构体字段
 	for i := 0; i < v.NumField(); i++ {
-		m[v.Type().Field(i).Name] = v.Field(i).Interface()
+		m[strings.ToLower(v.Type().Field(i).Name)] = v.Field(i).Interface()
 	}
 
 	return m, nil
