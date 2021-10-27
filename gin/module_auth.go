@@ -400,18 +400,18 @@ func (this *auth) UserDelete(c *gin.Context, json *UserDeleteRequest, translator
 		var u []User
 		tx.Where("id IN ?", ids).Find(&u)
 
-		// 删除用户（彻底删除，不保留删除时间，防止重复用户名）
-		result := tx.Unscoped().Delete(&u)
-		if result.Error != nil {
-			logrus.Error(result.Error)
-			return result.Error
-		}
-
 		// 删除关联
 		err = tx.Model(&u).Association("Roles").Clear()
 		if err != nil {
 			logrus.Error(err)
 			return err
+		}
+
+		// 删除用户（彻底删除，不保留删除时间，防止重复用户名）
+		result := tx.Unscoped().Delete(&u)
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
 		}
 
 		return nil
@@ -656,13 +656,6 @@ func (this *auth) RoleDelete(c *gin.Context, json *RoleDeleteRequest, translator
 		var r []Role
 		tx.Where("id IN ?", ids).Find(&r)
 
-		// 删除角色
-		result := tx.Where("id IN ?", ids).Delete(&Role{})
-		if result.Error != nil {
-			logrus.Error(result.Error)
-			return result.Error
-		}
-
 		// 删除关联
 		err = tx.Model(&r).Association("Users").Clear()
 		if err != nil {
@@ -675,6 +668,13 @@ func (this *auth) RoleDelete(c *gin.Context, json *RoleDeleteRequest, translator
 		if err != nil {
 			logrus.Error(err)
 			return err
+		}
+
+		// 删除角色
+		result := tx.Unscoped().Where("id IN ?", ids).Delete(&Role{})
+		if result.Error != nil {
+			logrus.Error(result.Error)
+			return result.Error
 		}
 
 		return nil
@@ -801,16 +801,16 @@ func (this *auth) PermissionDelete(c *gin.Context, json *PermissionDeleteRequest
 		var p []Permission
 		tx.Where("id IN ?", ids).Find(&p)
 
-		// 删除权限
-		result := tx.Delete(&p)
-		if result.Error != nil {
-			return result.Error
-		}
-
 		// 删除关联
 		err = tx.Model(&p).Association("Roles").Clear()
 		if err != nil {
 			return err
+		}
+
+		// 删除权限
+		result := tx.Unscoped().Delete(&p)
+		if result.Error != nil {
+			return result.Error
 		}
 
 		return nil
