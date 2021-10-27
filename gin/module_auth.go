@@ -235,12 +235,6 @@ func (this *auth) userGetCurrentNoCache(c *gin.Context)  (interface{}, error){
 		return nil, err
 	}
 
-	// Ignore the avatar tag in the User structure
-	type tmp struct {
-		User
-		Avatar string	`json:"avatar"`
-	}
-
 	var userApi UserGetCurrentResponse
 	// 复制相同字段且相同类型的值
 	d.CopyStructValue(u, &userApi)
@@ -486,7 +480,6 @@ func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformat
 		return err
 	}
 
-
 	// Get current user id
 	id, err := this.GetUserIdByRequest(c)
 	if err != nil {
@@ -511,7 +504,7 @@ func (this *auth) UserUpdateInformation(c *gin.Context, json *UserUpdateInformat
 		// 如果找到记录则删除
 		if result2.RowsAffected > 0 {
 			// Delete Database
-			if err := d.DatabaseClient.Unscoped().Where("path IN (?)", []string{old.Path}).Delete(Attachment{}).Error; err != nil {
+			if err := tx.Unscoped().Where("path IN (?)", []string{old.Path}).Delete(Attachment{}).Error; err != nil {
 				logrus.Error(err)
 				return err
 			}
@@ -880,6 +873,23 @@ func (this *auth) DiskCleanup() error {
 	}
 
 	return nil
+}
+
+// 上传图片
+func (this *auth) AttachmentUploadImage(c *gin.Context, subDir string) (filePath string, err error) {
+	// 上传图片到文件
+	filePath, err = ImageUpload(c, subDir)
+	if err != nil {
+		return "", err
+	}
+
+	// 路径入数据库
+	if err = d.DatabaseClient.Create(&Attachment{Path: filePath}).Error; err != nil {
+		_ = d.FileDelete(filePath)
+		return "", err
+	}
+
+	return filePath, nil
 }
 
 // 插入初始化数据到数据库

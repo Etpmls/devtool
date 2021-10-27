@@ -11,7 +11,7 @@ import (
 )
 
 // 上传图片
-func ImageUpload(c *gin.Context, subDir string) error {
+func ImageUpload(c *gin.Context, subDir string) (filePath string, err error) {
 	// 如果subDir未设置，默认为日期
 	if subDir == "" {
 		subDir = time.Now().Format("20060102")
@@ -19,24 +19,24 @@ func ImageUpload(c *gin.Context, subDir string) error {
 
 	file, err := c.FormFile("file")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	f, err := file.Open()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	extension, err := d.ImageValidate(f)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Make Dir
 	path := d.GetUploadPath() + subDir + "/"
 	err = os.MkdirAll(path, os.ModePerm)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// UUID File name
 	u := strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -44,10 +44,10 @@ func ImageUpload(c *gin.Context, subDir string) error {
 	file_path := path + u + "." + extension
 	err = c.SaveUploadedFile(file, file_path)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return file_path, nil
 }
 
 // Delete Image
