@@ -441,7 +441,52 @@ Verify the response code returned from the front end
 
 
 
-## Auth
+## Gin
+
+**Get started**
+
+Import package
+
+```go
+import "github.com/Etpmls/devtool/gin"
+```
+
+**Function**
+
+> SetCors(router *gin.Engine, allowHeaders []string)
+
+Set the header field name allowed by CORS
+
+Example
+
+```go
+func main()  {
+	r := gin.Default()
+	d_gin.SetCors(r, []string{"token", "language"})
+	r.Run()
+}
+```
+
+### Validate
+
+**Function**
+
+> Validate(c *gin.Context, structAddr interface{}, translator ut.Translator) error
+
+Verify that the request meets the requirements
+
+**Example**
+
+```go
+err := d_gin.Validate(c, json, nil)
+if err != nil {
+    return err
+}
+```
+
+
+
+### Auth
 
 **Depend**
 
@@ -456,6 +501,16 @@ Default false. Skip to initialize permission related data
 > TokenExpirationTime ( time.Duration | optional )
 
 Default 43200. Token expiration time, unit s (seconds)
+
+**Function**
+
+> GetUserIdByRequest(c *gin.Context) (uint, error)
+
+Get User ID by request token
+
+> GetUserByRequest(c *gin.Context) (u User, err error)
+
+Get User information by request token
 
 **Example**
 
