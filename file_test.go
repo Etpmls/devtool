@@ -2,7 +2,7 @@ package d_test
 
 import (
 	"fmt"
-	d "github.com/Etpmls/devtool"
+	d "github.com/etpmls/devtool"
 	"os"
 	"testing"
 )

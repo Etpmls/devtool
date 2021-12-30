@@ -3,7 +3,7 @@ package d_gin
 import (
 	"context"
 	"encoding/json"
-	d "github.com/Etpmls/devtool"
+	d "github.com/etpmls/devtool"
 	"github.com/gin-gonic/gin"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-redis/redis/v8"

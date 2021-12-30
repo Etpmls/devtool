@@ -3,7 +3,7 @@ package d_test
 import (
 	"encoding/json"
 	"fmt"
-	d "github.com/Etpmls/devtool"
+	d "github.com/etpmls/devtool"
 	"testing"
 )
 

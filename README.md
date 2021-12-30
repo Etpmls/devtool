@@ -6,7 +6,7 @@ devtool is a development tool library. We have packaged various tools, and you c
 
 ```go
 import (
-	d "github.com/Etpmls/devtool"
+	d "github.com/etpmls/devtool"
 )
 ```
 **2. Go mod**
@@ -19,7 +19,7 @@ go mod vendor
 package main
 
 import (
-	d "github.com/Etpmls/devtool"
+	d "github.com/etpmls/devtool"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -448,7 +448,7 @@ Verify the response code returned from the front end
 Import package
 
 ```go
-import "github.com/Etpmls/devtool/gin"
+import "github.com/etpmls/devtool/gin"
 ```
 
 **Function**

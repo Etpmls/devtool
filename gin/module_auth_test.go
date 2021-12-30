@@ -3,8 +3,8 @@ package d_gin_test
 import (
 	"context"
 	"fmt"
-	d "github.com/Etpmls/devtool"
-	d_gin "github.com/Etpmls/devtool/gin"
+	d "github.com/etpmls/devtool"
+	d_gin "github.com/etpmls/devtool/gin"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"net/http"
