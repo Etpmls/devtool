@@ -1,4 +1,4 @@
-module github.com/Etpmls/devtool
+module github.com/etpmls/devtool
 
 go 1.16
 
