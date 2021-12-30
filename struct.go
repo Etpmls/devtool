@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// 复制结构体的值到另一个拥有相同字段的结构体
 func CopyStructValue(source interface{}, target interface{})  {
 	sourceVal := reflect.ValueOf(source)
 	targetVal := reflect.ValueOf(target)
@@ -33,6 +34,7 @@ func CopyStructValue(source interface{}, target interface{})  {
 	return
 }
 
+// 结构体转化为map，key值全部为小写
 func StructToMap(st interface{}) (map[string]interface{}, error) {
 	v := reflect.ValueOf(st)
 	if v.Kind() == reflect.Ptr {
@@ -48,6 +50,27 @@ func StructToMap(st interface{}) (map[string]interface{}, error) {
 	// 遍历结构体字段
 	for i := 0; i < v.NumField(); i++ {
 		m[strings.ToLower(v.Type().Field(i).Name)] = v.Field(i).Interface()
+	}
+
+	return m, nil
+}
+
+// 结构体转化为map，key值全部为蛇形命名
+func StructToMapSnakeKey(st interface{}) (map[string]interface{}, error) {
+	v := reflect.ValueOf(st)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("ToMap only accepts struct or struct pointer; got %T", v)
+	}
+
+	// 初始化一个map
+	var m = make(map[string]interface{})
+	// 遍历结构体字段
+	for i := 0; i < v.NumField(); i++ {
+		m[StringsToSnake(v.Type().Field(i).Name)] = v.Field(i).Interface()
 	}
 
 	return m, nil

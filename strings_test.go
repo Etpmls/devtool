@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestGenerateRandomString(t *testing.T) {
-	fmt.Println(d.GenerateRandomString(25))
+func TestStringsGenerateRandom(t *testing.T) {
+	fmt.Println(d.StringsGenerateRandom(25))
 }
 
 func TestBcryptPassword(t *testing.T) {
@@ -17,4 +17,11 @@ func TestBcryptPassword(t *testing.T) {
 		t.Error(err)
 	}
 	fmt.Println(pw)
+}
+
+func TestStringsToSnake(t *testing.T) {
+	fmt.Println(d.StringsToSnake(""))
+	fmt.Println(d.StringsToSnake("Test"))
+	fmt.Println(d.StringsToSnake("TeST"))
+	fmt.Println(d.StringsToSnake("test"))
 }

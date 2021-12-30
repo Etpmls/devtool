@@ -32,13 +32,13 @@ func TestCopyStructValue(t *testing.T) {
 
 func TestStructToMap(t *testing.T) {
 	var a = struct {
-		A string
-		B int
-		C bool
+		AaAa string
+		BbBB int
+		Cccc bool
 	}{
-		A: "test",
-		B: 999,
-		C: true,
+		AaAa: "test",
+		BbBB: 999,
+		Cccc: true,
 	}
 	m1, err := d.StructToMap(a)
 	if err != nil {
@@ -47,6 +47,30 @@ func TestStructToMap(t *testing.T) {
 	}
 	fmt.Println(m1)
 	m2, err := d.StructToMap(&a)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	fmt.Println(m2)
+}
+
+func TestStructToMapSnakeKey(t *testing.T) {
+	var a = struct {
+		AaAa string
+		BbBB int
+		Cccc bool
+	}{
+		AaAa: "test",
+		BbBB: 999,
+		Cccc: true,
+	}
+	m1, err := d.StructToMapSnakeKey(a)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	fmt.Println(m1)
+	m2, err := d.StructToMapSnakeKey(&a)
 	if err != nil {
 		t.Fatal(err)
 		return

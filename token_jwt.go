@@ -22,7 +22,7 @@ type optionalToken struct {
 func (this *token) Init()  {
 	// 如果没有加密签名，默认自动生成25位长度作为加密签名
 	if this.Optional.SigningKey == "" {
-		this.Optional.SigningKey = GenerateRandomString(25)
+		this.Optional.SigningKey = StringsGenerateRandom(25)
 	}
 	this.enable = true
 }
